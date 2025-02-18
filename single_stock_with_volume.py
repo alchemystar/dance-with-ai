@@ -339,7 +339,7 @@ if __name__ == "__main__":
     results.sort(key=lambda x: x['total_return'], reverse=True)
     
     # 定义收件人列表
-    recipients = ["652433935@qq.com", "todd.zeng@foxmail.com"]
+    recipients = ["652433935@qq.com"]
     
     # 生成HTML表格并发送邮件
     html_content = generate_html_table(results, stock_names)
