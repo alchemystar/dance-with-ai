@@ -37,20 +37,26 @@ def trading_strategy(df):
     df = calculate_macd(df)
     df['signal'] = 0
     
-    for i in range(1, len(df)):
-        # MACD金叉：DIF从下向上穿越DEA
-        if (df['dif'].iloc[i-1] < df['dea'].iloc[i-1] and 
-            df['dif'].iloc[i] > df['dea'].iloc[i]):
+    # 使用前一天的MACD数据来生成今天的交易信号
+    for i in range(2, len(df)):
+        # MACD金叉：使用前一天的数据判断
+        if (df['dif'].iloc[i-2] < df['dea'].iloc[i-2] and 
+            df['dif'].iloc[i-1] > df['dea'].iloc[i-1]):
             df.loc[i, 'signal'] = 1
         
-        # MACD死叉：DIF从上向下穿越DEA
-        elif (df['dif'].iloc[i-1] > df['dea'].iloc[i-1] and 
-              df['dif'].iloc[i] < df['dea'].iloc[i]):
+        # MACD死叉：使用前一天的数据判断
+        elif (df['dif'].iloc[i-2] > df['dea'].iloc[i-2] and 
+              df['dif'].iloc[i-1] < df['dea'].iloc[i-1]):
             df.loc[i, 'signal'] = -1
     
     return df
 
-def backtest(df, initial_cash=100000):
+def backtest(df, initial_cash=100000, slippage=0.002, commission_rate=0.0003):
+    """
+    添加滑点和手续费的回测
+    slippage: 滑点比例，默认0.2%
+    commission_rate: 手续费率，默认0.03%
+    """
     cash = initial_cash
     stock = 0
     transactions = []
@@ -58,8 +64,11 @@ def backtest(df, initial_cash=100000):
 
     for i in range(len(df)):
         if df['signal'].iloc[i] == 1 and cash > 0:
-            stock = cash / df['open'].iloc[i]
-            last_buy_price = df['open'].iloc[i]
+            # 考虑滑点的买入价格
+            buy_price = df['open'].iloc[i] * (1 + slippage)
+            # 考虑手续费
+            stock = (cash * (1 - commission_rate)) / buy_price
+            last_buy_price = buy_price
             cash = 0
             reason = (f"MACD金叉买入 - DIF: {df['dif'].iloc[i]:.3f}, "
                      f"DEA: {df['dea'].iloc[i]:.3f}, "
@@ -72,8 +81,11 @@ def backtest(df, initial_cash=100000):
                 'return_rate': 0
             })
         elif df['signal'].iloc[i] == -1 and stock > 0:
-            cash = stock * df['open'].iloc[i]
-            current_return = (df['open'].iloc[i] - last_buy_price) / last_buy_price * 100
+            # 考虑滑点的卖出价格
+            sell_price = df['open'].iloc[i] * (1 - slippage)
+            # 考虑手续费
+            cash = stock * sell_price * (1 - commission_rate)
+            current_return = (sell_price - last_buy_price) / last_buy_price * 100
             stock = 0
             reason = (f"MACD死叉卖出 - DIF: {df['dif'].iloc[i]:.3f}, "
                      f"DEA: {df['dea'].iloc[i]:.3f}, "
@@ -305,24 +317,25 @@ if __name__ == "__main__":
     # 定义股票池和名称映射
     stock_names = {
         '002351.SZ': '漫步者',
-        '000625.SZ': '长安汽车',
-        '000550.SZ': '江铃汽车',
-        '600737.SH': '中粮糖业',
-        '002561.SZ': '徐家汇',
-        '001979.SZ': '招商蛇口',
-        '003000.SZ': '劲仔食品',
-        '603728.SH': '鸣志电器',
-        '603583.SH': '捷昌驱动',
-        '002270.SZ': '华明装备',
-        '300762.SZ': '上海瀚讯',
-        '600919.SH': '江苏银行',
-        '605111.SH': '新洁能',  
-        "002690.SZ":"美亚光电",
-        "300776.SZ":"帝尔激光",
-        "000415.SZ":"渤海租赁",
-        "688271.SH":"联影医疗",
-        "000999.SZ":"华润三九",
-        "688411.SH":"海博思创",
+       '000625.SZ': '长安汽车',
+       '000550.SZ': '江铃汽车',
+       '600737.SH': '中粮糖业',
+       '002561.SZ': '徐家汇',
+       '001979.SZ': '招商蛇口',
+       '003000.SZ': '劲仔食品',
+       '603728.SH': '鸣志电器',
+       '603583.SH': '捷昌驱动',
+       '002270.SZ': '华明装备',
+       '300762.SZ': '上海瀚讯',
+       '600919.SH': '江苏银行',
+       '605111.SH': '新洁能',  
+       '600161.SH': '天坛生物',
+       "002690.SZ":"美亚光电",
+       "300776.SZ":"帝尔激光",
+       "000415.SZ":"渤海租赁",
+       "688271.SH":"联影医疗",
+       "000999.SZ":"华润三九",
+       "688411.SH":"海博思创",
         "300001.SZ":"特锐德"
     }
     
@@ -333,7 +346,7 @@ if __name__ == "__main__":
     print(f"回测区间: {start_date} 至 {end_date}")
     
     print("开始分析股票池...\n")
-    results = analyze_stock_pool(stock_pool, start_date, end_date, min_return=40, profit_loss_ratio=1.5)
+    results = analyze_stock_pool(stock_pool, start_date, end_date, min_return=5, profit_loss_ratio=0)
     
     # 按收益率排序
     results.sort(key=lambda x: x['total_return'], reverse=True)
@@ -343,7 +356,7 @@ if __name__ == "__main__":
     
     # 生成HTML表格并发送邮件
     html_content = generate_html_table(results, stock_names)
-    send_email(recipients, html_content)
+    # send_email(recipients, html_content)
     
     # 输出高收益股票信息
     for result in results:
