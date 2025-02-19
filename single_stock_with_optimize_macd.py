@@ -11,7 +11,21 @@ ts.set_token('c0f992e8369579bfec7bf8481dc0bcc304ac66ab5b1dd12c1d154325')
 pro = ts.pro_api()
 
 def fetch_stock_data(stock_code, start_date, end_date):
-    df = pro.daily(ts_code=stock_code, start_date=start_date, end_date=end_date)
+    """
+    获取股票数据，根据股票代码判断是A股还是港股
+    
+    Args:
+        stock_code: 股票代码（格式：A股为'000001.SZ'，港股为'00001.HK'）
+        start_date: 开始日期
+        end_date: 结束日期
+    """
+    if '.HK' in stock_code:
+        # 获取港股数据
+        df = pro.hk_daily(ts_code=stock_code, start_date=start_date, end_date=end_date)
+    else:
+        # 获取A股数据
+        df = pro.daily(ts_code=stock_code, start_date=start_date, end_date=end_date)
+    
     # 按照交易日期正序排列
     df = df.sort_values(by='trade_date', ascending=True)
     # 重置索引，保证索引是连续的
@@ -217,8 +231,8 @@ def analyze_stock_pool(stock_pool, start_date, end_date, min_return=40, profit_l
                 ratio = profitable / losses
             
             # 同时满足收益率和盈亏比要求
-            # if True:
-            if total_return > min_return and ratio >= profit_loss_ratio:
+            if True:
+            #if total_return > min_return and ratio >= profit_loss_ratio:
                 results.append({
                     'stock_code': stock_code,
                     'total_return': total_return,
@@ -228,6 +242,10 @@ def analyze_stock_pool(stock_pool, start_date, end_date, min_return=40, profit_l
                     'final_value': final_value,
                     'profit_loss_ratio': ratio
                 })
+            else:
+                print("total_return > min_return",total_return, min_return)
+                print("ratio >= profit_loss_ratio:",ratio, profit_loss_ratio)
+                print(f"股票 {stock_code} 不符合要求，跳过")
         except Exception as e:
             print(f"处理股票 {stock_code} 时出错: {str(e)}")
             continue
@@ -380,13 +398,33 @@ def print_transactions(transactions):
 if __name__ == "__main__":
     # 定义股票池和名称映射
     stock_names = {
-        '002351.SZ': '漫步者',
+       '002351.SZ': '漫步者',
+        '000625.SZ': '长安汽车',
+        '000550.SZ': '江铃汽车',
+        '600737.SH': '中粮糖业',
+        '002561.SZ': '徐家汇',
+        '001979.SZ': '招商蛇口',
+        '003000.SZ': '劲仔食品',
+        '603728.SH': '鸣志电器',
+        '603583.SH': '捷昌驱动',
+        '002270.SZ': '华明装备',
+        '300762.SZ': '上海瀚讯',
+        '600919.SH': '江苏银行',
+        '605111.SH': '新洁能',  
+        "002690.SZ":"美亚光电",
+        "300776.SZ":"帝尔激光",
+        "000415.SZ":"渤海租赁",
+        "688271.SH":"联影医疗",
+        "000999.SZ":"华润三九",
+        "688411.SH":"海博思创",
+        "300001.SZ":"特锐德",
+        '03692.HK': '翰森制药',
     }
     
     stock_pool = list(stock_names.keys())
     
     # 动态计算一年的回测区间
-    start_date, end_date = get_date_range(365 * 3)
+    start_date, end_date = get_date_range(365)
     print(f"回测区间: {start_date} 至 {end_date}")
     
     print("开始分析股票池...\n")
