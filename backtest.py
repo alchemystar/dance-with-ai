@@ -46,7 +46,6 @@ def backtest(df):
     last_buy_price = 0
     total_profit = 0  # 追踪总盈利金额
     max_drawdown = 0  # 初始化最大回撤
-    peak_value = initial_cash  # 初始化峰值
     for i in range(len(df)):
         if df['signal'].iloc[i] == 1 and cash > 0:
             stock = cash / df['open'].iloc[i]
@@ -180,6 +179,7 @@ if __name__ == "__main__":
         '600161.SH':'天坛生物',
         '002270.SZ':'华明装备',
         '300762.SZ':'上海瀚讯',
+        '03692.HK':'瀚讯制药'
     }
     
 

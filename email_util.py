@@ -27,10 +27,10 @@ def generate_html_table(results, stock_names):
             th, td { border: 1px solid black; padding: 8px; text-align: left; }
             th { background-color: #f2f2f2; }
             tr:nth-child(even) { background-color: #f9f9f9; }
-            .buy { color: #008000; font-weight: bold; }
-            .sell { color: #FF0000; font-weight: bold; }
-            .negative { color: #FF0000; }
-            .positive { color: #008000; }
+            .buy { color: #FF0000; font-weight: bold; }
+            .sell { color: #008000; font-weight: bold; }
+            .negative { color: #008000; }
+            .positive { color: #FF0000; }
         </style>
     </head>
     <body>

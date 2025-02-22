@@ -55,10 +55,6 @@ class macd_with_optimize_sell_strategy:
 
         # 从第二个数据开始，为下一个交易日生成信号
         for i in range(26, len(df)):
-
-            
-            if(df['trade_date'].iloc[i] == '20241113'):
-                print('here')
             # 如果持仓中，检查止盈止损
             if in_position:
                 # 收盘价做计算
