@@ -106,7 +106,7 @@ def send_email(to_addrs, html_content):
     msg = MIMEMultipart()
     msg['From'] = Header(from_addr)
     msg['To'] = Header(','.join(to_addrs))  # 多个收件人用逗号分隔
-    msg['Subject'] = Header('MACD策略回测结果', 'utf-8')
+    msg['Subject'] = Header('买卖策略回测结果', 'utf-8')
     
     msg.attach(MIMEText(html_content, 'html', 'utf-8'))
     
