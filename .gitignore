@@ -1,0 +1,7 @@
+{
+  "files.exclude": {
+    "**/*.pyc": true,
+    "**/__pycache__/": true
+  },
+  "explorer.excludeGitIgnore": true
+}
