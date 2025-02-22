@@ -4,7 +4,8 @@ from datetime import datetime, timedelta
 from macd_with_optimize_sell import macd_with_optimize_sell_strategy
 from stragegy_for_600345 import stragegy_for_600345
 from email_util import generate_html_table, send_email
-from print_util import print_transactions , print_cross_signals
+from print_util import print_transactions
+from macd_with_deepdown import macd_with_deepdown
 
 # Initialize Tushare with your token
 ts.set_token('c0f992e8369579bfec7bf8481dc0bcc304ac66ab5b1dd12c1d154325')
@@ -21,9 +22,14 @@ def fetch_stock_data(stock_code, start_date, end_date):
     if '.HK' in stock_code:
         # 获取港股数据
         df = pro.hk_daily(ts_code=stock_code, start_date=start_date, end_date=end_date)
-    else:
+    
+    elif stock_code.startswith('5') or stock_code.startswith('15'):
+        df = pro.fund_daily(ts_code=stock_code, start_date=start_date, end_date=end_date)
+    elif '.SZ' in stock_code or '.SH' in stock_code:
         # 获取A股数据
         df = pro.daily(ts_code=stock_code, start_date=start_date, end_date=end_date)
+
+     
     # 按照交易日期正序排列
     df = df.sort_values(by='trade_date', ascending=True)
     # 重置索引，保证索引是连续的
@@ -168,7 +174,12 @@ if __name__ == "__main__":
     stock_names = {
         '600919.SH': '江苏银行',
         '600345.SH': '长江通信',
-        '000001.SZ': '平安银行'
+        '000001.SZ': '平安银行',
+        '512480.SH':'半导体ETF',
+        '515650.SH':'消费ETF',
+        '600161.SH':'天坛生物',
+        '002270.SZ':'华明装备',
+        '300762.SZ':'上海瀚讯',
     }
     
 
@@ -178,8 +189,12 @@ if __name__ == "__main__":
     
     print("开始分析股票池...\n")
     results = []
-    results.extend(analyze_stock_pool(['600919.SH','000001.SZ'], start_date, end_date, macd_with_optimize_sell_strategy(5,0.01))) # 5表示涨了50%
-    results.extend(analyze_stock_pool(['600345.SH'], start_date, end_date, stragegy_for_600345()))
+    results.extend(analyze_stock_pool(['600919.SH','000001.SZ'], start_date, end_date, macd_with_optimize_sell_strategy(5,0.01))) # 5表示涨了500%
+    results.extend(analyze_stock_pool(['600345.SH'], start_date, end_date, stragegy_for_600345())) # 长江通信
+    results.extend(analyze_stock_pool(['515650.SH'], start_date, end_date, macd_with_optimize_sell_strategy(5,0.01))) 
+    results.extend(analyze_stock_pool(['300762.SZ'], start_date, end_date, macd_with_optimize_sell_strategy(5,0.08)))
+    results.extend(analyze_stock_pool(['600161.SH'], start_date, end_date, macd_with_deepdown()))
+
     # 按收益率排序
     results.sort(key=lambda x: x['total_return'], reverse=True)
     

@@ -54,7 +54,6 @@ class stragegy_for_600345:
         death_cross_threshold = 0.02
         in_position = False
         entry_price = None
-        next_signal = 0
 
         # 从第二个数据开始，为下一个交易日生成信号
         for i in range(26, len(df)):
