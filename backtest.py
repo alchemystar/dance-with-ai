@@ -179,7 +179,8 @@ if __name__ == "__main__":
         '600161.SH':'天坛生物',
         '002270.SZ':'华明装备',
         '300762.SZ':'上海瀚讯',
-        '03692.HK':'瀚讯制药'
+        '03692.HK':'瀚讯制药',
+        '00175.HK':'吉利汽车',
     }
     
 
@@ -193,13 +194,15 @@ if __name__ == "__main__":
     results.extend(analyze_stock_pool(['600345.SH'], start_date, end_date, stragegy_for_600345())) # 长江通信
     results.extend(analyze_stock_pool(['515650.SH'], start_date, end_date, macd_with_optimize_sell_strategy(5,0.01))) 
     results.extend(analyze_stock_pool(['300762.SZ'], start_date, end_date, macd_with_optimize_sell_strategy(5,0.08)))
+    results.extend(analyze_stock_pool(['00175.HK'], start_date, end_date, macd_with_optimize_sell_strategy(5,0.08)))
     results.extend(analyze_stock_pool(['600161.SH'], start_date, end_date, macd_with_deepdown()))
 
     # 按收益率排序
     results.sort(key=lambda x: x['total_return'], reverse=True)
     
     # 定义收件人列表
-    recipients = ["652433935@qq.com"]
+    recipients = ["652433935@qq.com","todd.zeng@foxmail.com"]
+    #recipients = ["652433935@qq.com"]
     
     # 生成HTML表格并发送邮件
     html_content = generate_html_table(results, stock_names)
