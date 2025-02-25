@@ -179,8 +179,12 @@ if __name__ == "__main__":
         '600161.SH':'天坛生物',
         '002270.SZ':'华明装备',
         '300762.SZ':'上海瀚讯',
-        '03692.HK':'瀚讯制药',
+        '03692.HK':'翰森制药',
         '00175.HK':'吉利汽车',
+        '03690.HK':'美团点评',
+        '00700.HK':'腾讯控股',
+        '09988.HK':'阿里巴巴',
+        '01810.HK':'小米集团'
     }
     
 
@@ -195,7 +199,12 @@ if __name__ == "__main__":
     results.extend(analyze_stock_pool(['515650.SH'], start_date, end_date, macd_with_optimize_sell_strategy(5,0.01))) 
     results.extend(analyze_stock_pool(['300762.SZ'], start_date, end_date, macd_with_optimize_sell_strategy(5,0.08)))
     results.extend(analyze_stock_pool(['00175.HK'], start_date, end_date, macd_with_optimize_sell_strategy(5,0.08)))
-    results.extend(analyze_stock_pool(['600161.SH'], start_date, end_date, macd_with_deepdown()))
+    results.extend(analyze_stock_pool(['600161.SH','002270.SZ'], start_date, end_date, macd_with_deepdown()))
+    results.extend(analyze_stock_pool(['09988.HK'], start_date, end_date, macd_with_optimize_sell_strategy(5,0.06)))
+    results.extend(analyze_stock_pool(['00700.HK'], start_date, end_date, macd_with_optimize_sell_strategy(5,0.03)))
+    results.extend(analyze_stock_pool(['03690.HK'], start_date, end_date, macd_with_optimize_sell_strategy(5,0.08)))
+    results.extend(analyze_stock_pool(['01810.HK'], start_date, end_date, macd_with_optimize_sell_strategy(5,0.08)))
+    
 
     # 按收益率排序
     results.sort(key=lambda x: x['total_return'], reverse=True)
