@@ -184,7 +184,8 @@ if __name__ == "__main__":
         '03690.HK':'美团点评',
         '00700.HK':'腾讯控股',
         '09988.HK':'阿里巴巴',
-        '01810.HK':'小米集团'
+        '01810.HK':'小米集团',
+        '603583.SH':'捷昌驱动',
     }
     
 
@@ -204,7 +205,7 @@ if __name__ == "__main__":
     results.extend(analyze_stock_pool(['00700.HK'], start_date, end_date, macd_with_optimize_sell_strategy(5,0.03)))
     results.extend(analyze_stock_pool(['03690.HK'], start_date, end_date, macd_with_optimize_sell_strategy(5,0.08)))
     results.extend(analyze_stock_pool(['01810.HK'], start_date, end_date, macd_with_optimize_sell_strategy(5,0.08)))
-    
+    results.extend(analyze_stock_pool(['603583.SH'], start_date, end_date, macd_with_optimize_sell_strategy(5,0.02)))
 
     # 按收益率排序
     results.sort(key=lambda x: x['total_return'], reverse=True)
