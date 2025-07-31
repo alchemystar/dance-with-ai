@@ -1,3 +1,4 @@
+from time import sleep
 import tushare as ts
 import pandas as pd
 from datetime import datetime, timedelta
@@ -22,6 +23,7 @@ def fetch_stock_data(stock_code, start_date, end_date):
     if '.HK' in stock_code:
         # 获取港股数据
         df = pro.hk_daily(ts_code=stock_code, start_date=start_date, end_date=end_date)
+        sleep(5)  # 港股数据请求频率限制，适当延时
     
     elif stock_code.startswith('5') or stock_code.startswith('15'):
         df = pro.fund_daily(ts_code=stock_code, start_date=start_date, end_date=end_date)
