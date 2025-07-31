@@ -21,7 +21,7 @@ def fetch_stock_data(stock_code, start_date, end_date):
         end_date: 结束日期
     """
     if '.HK' in stock_code:
-        # 获取港股数据
+        # 获取港股数据 , sleep必须放在前面，否则fast fail后走不到sleep
         sleep(60)  # 港股数据请求频率限制，适当延时
         df = pro.hk_daily(ts_code=stock_code, start_date=start_date, end_date=end_date)
     elif stock_code.startswith('5') or stock_code.startswith('15'):
