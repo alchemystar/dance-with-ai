@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 from datetime import datetime
+from pathlib import Path
 
 from openai import OpenAI
 
@@ -13,6 +14,7 @@ from macd_with_regime_filter import macd_with_regime_filter_strategy
 from stragegy_for_600345 import stragegy_for_600345
 
 DEFAULT_OPENAI_MODEL = "gpt-5.4"
+AI_CACHE_DIR = Path(".cache/openai_cross_section")
 
 
 def resolve_strategy(mode, stock_code):
@@ -165,10 +167,27 @@ def extract_sources(response):
     return sources[:12]
 
 
-def evaluate_with_gpt54(stock_code, stock_name, snapshot, model):
+def _normalize_model_name(model):
+    return str(model).replace("/", "_").replace(":", "_")
+
+
+def _get_ai_cache_path(stock_code, trade_date, model):
+    AI_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    return AI_CACHE_DIR / f"{stock_code}_{trade_date}_{_normalize_model_name(model)}.json"
+
+
+def evaluate_with_gpt54(stock_code, stock_name, snapshot, model, use_cache=True):
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise ValueError("缺少 OPENAI_API_KEY，无法调用 GPT-5.4")
+
+    cache_path = _get_ai_cache_path(
+        stock_code=stock_code,
+        trade_date=snapshot.get("trade_date", datetime.now().strftime("%Y%m%d")),
+        model=model,
+    )
+    if use_cache and cache_path.exists():
+        return json.loads(cache_path.read_text(encoding="utf-8"))
 
     client = OpenAI(api_key=api_key)
     response = client.responses.create(
@@ -188,7 +207,44 @@ def evaluate_with_gpt54(stock_code, stock_name, snapshot, model):
     report = extract_json(response.output_text)
     report["sources"] = extract_sources(response)
     report["model"] = model
+    cache_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     return report
+
+
+def build_ai_report_for_stock(
+    stock_code,
+    mode="auto",
+    start_date=None,
+    end_date=None,
+    refresh_cache=False,
+    model=None,
+):
+    model = model or os.getenv("OPENAI_MODEL", DEFAULT_OPENAI_MODEL)
+    end_date = end_date or datetime.now().strftime("%Y%m%d")
+    start_date = start_date or "20240331"
+    stock_name = DEFAULT_STOCK_NAMES.get(stock_code, stock_code)
+    strategy = resolve_strategy(mode, stock_code)
+
+    df = fetch_stock_data(stock_code, start_date, end_date, force_refresh=refresh_cache)
+    df = enrich_with_market_context(
+        df,
+        start_date,
+        end_date,
+        force_refresh=refresh_cache,
+        stock_code=stock_code,
+    )
+    signal_df = strategy.trading_strategy(df.copy())
+    technical_prediction = strategy.predict_next_signal(signal_df)
+    snapshot = build_snapshot(df, signal_df, technical_prediction)
+    report = evaluate_with_gpt54(stock_code, stock_name, snapshot, model, use_cache=not refresh_cache)
+    return {
+        "stock_code": stock_code,
+        "stock_name": stock_name,
+        "strategy_name": strategy.__class__.__name__,
+        "technical_prediction": technical_prediction,
+        "snapshot": snapshot,
+        "report": report,
+    }
 
 
 def print_report(stock_code, stock_name, strategy_name, technical_prediction, report):
@@ -237,19 +293,18 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
-    stock_name = DEFAULT_STOCK_NAMES.get(args.stock, args.stock)
-    strategy = resolve_strategy(args.mode, args.stock)
-
-    df = fetch_stock_data(args.stock, args.start_date, args.end_date, force_refresh=args.refresh_cache)
-    df = enrich_with_market_context(
-        df,
-        args.start_date,
-        args.end_date,
-        force_refresh=args.refresh_cache,
+    bundle = build_ai_report_for_stock(
         stock_code=args.stock,
+        mode=args.mode,
+        start_date=args.start_date,
+        end_date=args.end_date,
+        refresh_cache=args.refresh_cache,
+        model=args.model,
     )
-    signal_df = strategy.trading_strategy(df.copy())
-    technical_prediction = strategy.predict_next_signal(signal_df)
-    snapshot = build_snapshot(df, signal_df, technical_prediction)
-    report = evaluate_with_gpt54(args.stock, stock_name, snapshot, args.model)
-    print_report(args.stock, stock_name, strategy.__class__.__name__, technical_prediction, report)
+    print_report(
+        bundle["stock_code"],
+        bundle["stock_name"],
+        bundle["strategy_name"],
+        bundle["technical_prediction"],
+        bundle["report"],
+    )
