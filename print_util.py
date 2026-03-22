@@ -16,7 +16,13 @@ def print_transactions(transactions):
     
     for trade in transactions:
         date = trade['date']
-        action = "买入" if trade['action'] == 'buy' else "卖出"
+        action_map = {
+            'buy': '买入',
+            'add': '加仓',
+            'trim': '减仓',
+            'sell': '卖出',
+        }
+        action = action_map.get(trade['action'], trade['action'])
         price = trade['price']
         return_rate = trade['return_rate']
         reason = trade['reason']

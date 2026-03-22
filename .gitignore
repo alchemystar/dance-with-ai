@@ -1,7 +1,5 @@
-{
-  "files.exclude": {
-    "**/*.pyc": true,
-    "**/__pycache__/": true
-  },
-  "explorer.excludeGitIgnore": true
-}
+.venv/
+__pycache__/
+*.pyc
+.cache/
+tk.csv

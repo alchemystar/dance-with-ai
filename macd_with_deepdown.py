@@ -36,6 +36,7 @@ class macd_with_deepdown(predict_next_signal_class):
         df = calculate_macd(df)
         df = calculate_rsi(df)
         df['signal'] = 0
+        df['reason'] = "观望"
 
         # 参数设置
         high_open_threshold = 0.02  # 高开阈值
@@ -51,6 +52,12 @@ class macd_with_deepdown(predict_next_signal_class):
         buy_reference_low = None  # 记录买入时的20日低点
 
         for i in range(26, len(df)-1):
+            if df['signal'].iloc[i] == 1 and last_buy_index is None:
+                last_buy_index = i
+            elif df['signal'].iloc[i] == -1 and last_buy_index is not None:
+                last_buy_index = None
+                buy_reference_low = None
+
             # 计算开盘涨幅
             open_change = (df['open'].iloc[i] - df['close'].iloc[i-1]) / df['close'].iloc[i-1]
 
@@ -63,11 +70,11 @@ class macd_with_deepdown(predict_next_signal_class):
             if (df['dif'].iloc[i-1] < df['dea'].iloc[i-1] and 
                 df['dif'].iloc[i] > df['dea'].iloc[i] and
                 min_gap < dif_dea_gap_threshold and 
-                open_change <= high_open_threshold):
+                open_change <= high_open_threshold and
+                last_buy_index is None):
 
                 df.loc[i+1, 'signal'] = 1
                 df.loc[i+1, 'reason'] = "金叉且之前DIF大幅低于DEA"
-                last_buy_index = i + 1
                 buy_reference_low = df['lowest_20d'].iloc[i]  # 记录买入时的20日低点
 
             # 卖出条件：

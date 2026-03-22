@@ -1,0 +1,4 @@
+pandas>=2.0
+tushare>=1.2
+openai>=1.0
+akshare>=1.18
