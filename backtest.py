@@ -1975,6 +1975,14 @@ def _prepare_backtest_frame(df):
 def add_financial_peer_context(stock_frames):
     records = []
     industry_map = load_stock_industry_map()
+    required_peer_cols = [
+        "financial_quality_score",
+        "financial_health_score",
+        "financial_profit_yoy",
+        "financial_revenue_yoy",
+        "financial_operating_cashflow_yoy",
+        "financial_roe",
+    ]
 
     for stock_code, stock_df in stock_frames.items():
         if stock_df.empty or not _is_domestic_equity(stock_code):
@@ -2026,6 +2034,10 @@ def add_financial_peer_context(stock_frames):
     peer_df = peer_df.dropna(subset=["trade_date", "industry"]).copy()
     if peer_df.empty:
         return stock_frames
+
+    for col in required_peer_cols:
+        if col not in peer_df.columns:
+            peer_df[col] = pd.NA
 
     peer_group = peer_df.groupby(["trade_date", "industry"])
     peer_df["industry_peer_count"] = peer_group["stock_code"].transform("nunique")

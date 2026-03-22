@@ -1,8 +1,10 @@
 import argparse
 import json
+import logging
 import os
 from datetime import datetime
 from pathlib import Path
+from time import perf_counter
 
 from openai import OpenAI
 
@@ -15,6 +17,7 @@ from stragegy_for_600345 import stragegy_for_600345
 
 DEFAULT_OPENAI_MODEL = "gpt-5.4"
 AI_CACHE_DIR = Path(".cache/openai_cross_section")
+logger = logging.getLogger(__name__)
 
 
 def resolve_strategy(mode, stock_code):
@@ -187,8 +190,11 @@ def evaluate_with_gpt54(stock_code, stock_name, snapshot, model, use_cache=True)
         model=model,
     )
     if use_cache and cache_path.exists():
+        logger.info("AI分析缓存命中 %s %s -> %s", stock_code, stock_name, cache_path)
         return json.loads(cache_path.read_text(encoding="utf-8"))
 
+    started_at = perf_counter()
+    logger.info("开始调用 GPT-5.4 分析 %s %s，模型=%s", stock_code, stock_name, model)
     client = OpenAI(api_key=api_key)
     response = client.responses.create(
         model=model,
@@ -208,6 +214,13 @@ def evaluate_with_gpt54(stock_code, stock_name, snapshot, model, use_cache=True)
     report["sources"] = extract_sources(response)
     report["model"] = model
     cache_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    logger.info(
+        "完成 GPT-5.4 分析 %s %s，decision=%s，耗时 %.2fs",
+        stock_code,
+        stock_name,
+        report.get("decision", ""),
+        perf_counter() - started_at,
+    )
     return report
 
 
@@ -224,8 +237,18 @@ def build_ai_report_for_stock(
     start_date = start_date or "20240331"
     stock_name = DEFAULT_STOCK_NAMES.get(stock_code, stock_code)
     strategy = resolve_strategy(mode, stock_code)
+    started_at = perf_counter()
+    logger.info(
+        "开始准备 AI 股票报告 %s %s，mode=%s，区间 %s ~ %s",
+        stock_code,
+        stock_name,
+        mode,
+        start_date,
+        end_date,
+    )
 
     df = fetch_stock_data(stock_code, start_date, end_date, force_refresh=refresh_cache)
+    logger.info("行情数据就绪 %s %s，样本 %s 行", stock_code, stock_name, len(df))
     df = enrich_with_market_context(
         df,
         start_date,
@@ -233,10 +256,19 @@ def build_ai_report_for_stock(
         force_refresh=refresh_cache,
         stock_code=stock_code,
     )
+    logger.info("市场上下文就绪 %s %s，开始跑技术策略", stock_code, stock_name)
     signal_df = strategy.trading_strategy(df.copy())
     technical_prediction = strategy.predict_next_signal(signal_df)
     snapshot = build_snapshot(df, signal_df, technical_prediction)
     report = evaluate_with_gpt54(stock_code, stock_name, snapshot, model, use_cache=not refresh_cache)
+    logger.info(
+        "AI 股票报告完成 %s %s，技术信号=%s，AI结论=%s，总耗时 %.2fs",
+        stock_code,
+        stock_name,
+        technical_prediction.get("signal", ""),
+        report.get("decision", ""),
+        perf_counter() - started_at,
+    )
     return {
         "stock_code": stock_code,
         "stock_name": stock_name,
@@ -292,6 +324,10 @@ def parse_args():
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
     args = parse_args()
     bundle = build_ai_report_for_stock(
         stock_code=args.stock,

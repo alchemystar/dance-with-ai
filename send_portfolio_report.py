@@ -1,4 +1,6 @@
 from datetime import date
+import logging
+from time import perf_counter
 
 import pandas as pd
 
@@ -14,6 +16,8 @@ from email_util import send_email
 from hk_holdings_tracker import HK_HOLDING_PROFILES, build_hk_holding_cards
 from state_owned_dividend_strategy import state_owned_dividend_strategy
 from value_quality_hold_strategy import value_quality_hold_strategy
+
+logger = logging.getLogger(__name__)
 
 
 def _render_table(df: pd.DataFrame, title: str) -> str:
@@ -116,12 +120,15 @@ def _bank_dividend_core_strategy():
 
 def _analyze_core_pool_results(core_df: pd.DataFrame, days: int):
     if core_df.empty:
+        logger.info("核心长期池为空，跳过回测摘要生成")
         return pd.DataFrame()
 
     start_date, end_date = get_date_range(days)
     rows = []
+    logger.info("开始生成核心长期池回测摘要，共 %s 只股票，区间 %s ~ %s", len(core_df), start_date, end_date)
     for _, row in core_df.iterrows():
         stock_code = row["stock_code"]
+        stock_name = row["name"]
         source_tags = str(row.get("source_tags", "") or "")
         if "bank_dividend" in source_tags:
             strategy = _bank_dividend_core_strategy()
@@ -130,15 +137,22 @@ def _analyze_core_pool_results(core_df: pd.DataFrame, days: int):
         else:
             strategy = value_quality_hold_strategy(display_name="value_quality_hold")
 
-        results = analyze_stock_pool(
-            [stock_code],
-            start_date,
-            end_date,
-            strategy,
-            verbose=False,
-            force_refresh=False,
-        )
+        started_at = perf_counter()
+        logger.info("开始回测核心池股票 %s %s，策略=%s", stock_code, stock_name, strategy.display_name)
+        try:
+            results = analyze_stock_pool(
+                [stock_code],
+                start_date,
+                end_date,
+                strategy,
+                verbose=False,
+                force_refresh=False,
+            )
+        except Exception:
+            logger.exception("核心池股票 %s %s 回测失败", stock_code, stock_name)
+            continue
         if not results:
+            logger.warning("核心池股票 %s %s 未返回回测结果", stock_code, stock_name)
             continue
         result = results[0]
         stats = result["stats"]
@@ -160,6 +174,15 @@ def _analyze_core_pool_results(core_df: pd.DataFrame, days: int):
                 "策略": result["strategy_name"],
             }
         )
+        logger.info(
+            "完成回测 %s %s，累计收益=%s，最大回撤=%s，耗时 %.2fs",
+            stock_code,
+            stock_name,
+            rows[-1]["累计收益"],
+            rows[-1]["最大回撤"],
+            perf_counter() - started_at,
+        )
+    logger.info("核心长期池回测摘要生成完成，成功 %s 只", len(rows))
     return pd.DataFrame(rows)
 
 
@@ -190,16 +213,21 @@ def _summarize_buy_hold(stock_code: str, days: int):
 
 def _build_hk_report(days: int):
     stocks = list(HK_HOLDING_PROFILES.keys())
+    logger.info("开始生成港股持仓摘要，共 %s 只股票", len(stocks))
     tracker_df = build_hk_holding_cards(stocks=stocks, days=days, force_refresh=False)
     rows = []
     for _, row in tracker_df.iterrows():
         stock_code = row["stock_code"]
+        stock_name = row["name"]
+        started_at = perf_counter()
         try:
+            logger.info("开始统计港股持有基线 %s %s", stock_code, stock_name)
             stats = _summarize_buy_hold(stock_code, days)
             total_return = f"{stats['total_return']:.2f}%"
             annual_return = f"{stats['annual_return']:.2f}%"
             max_drawdown = f"{stats['max_drawdown']:.2f}%"
         except Exception:
+            logger.exception("港股 %s %s 统计失败", stock_code, stock_name)
             total_return = "N/A"
             annual_return = "N/A"
             max_drawdown = "N/A"
@@ -220,10 +248,21 @@ def _build_hk_report(days: int):
                 "重点跟踪": row["key_watch"],
             }
         )
+        logger.info(
+            "完成港股统计 %s %s，累计收益=%s，最大回撤=%s，耗时 %.2fs",
+            stock_code,
+            stock_name,
+            total_return,
+            max_drawdown,
+            perf_counter() - started_at,
+        )
+    logger.info("港股持仓摘要生成完成，成功 %s 只", len(rows))
     return pd.DataFrame(rows)
 
 
 def build_html() -> str:
+    started_at = perf_counter()
+    logger.info("开始构建邮件 HTML")
     core_pool_df = screen_core_long_term_pool(
         days=720,
         value_scope="all",
@@ -232,6 +271,7 @@ def build_html() -> str:
         top=10,
         force_refresh=False,
     ).copy()
+    logger.info("核心长期池筛选完成，候选 %s 只", len(core_pool_df))
     core_result_df = _analyze_core_pool_results(core_pool_df.head(8), days=720)
     hk_df = _build_hk_report(days=720)
 
@@ -270,9 +310,22 @@ def build_html() -> str:
     </body>
     </html>
     """
+    logger.info(
+        "邮件 HTML 构建完成，核心池=%s 行，港股=%s 行，耗时 %.2fs",
+        len(core_result_df),
+        len(hk_df),
+        perf_counter() - started_at,
+    )
     return html
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
+    logger.info("开始生成并发送组合邮件")
     html_content = build_html()
+    logger.info("HTML 已生成，开始发送邮件")
     send_email(DEFAULT_RECIPIENTS, html_content)
+    logger.info("邮件发送流程结束")
