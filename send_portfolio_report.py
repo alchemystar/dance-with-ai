@@ -19,9 +19,49 @@ from value_quality_hold_strategy import value_quality_hold_strategy
 def _render_table(df: pd.DataFrame, title: str) -> str:
     if df.empty:
         return f"<h3>{title}</h3><p>暂无数据</p>"
+    styled_df = df.copy()
+    buy_columns = [col for col in ["买点提示", "建议买点"] if col in styled_df.columns]
+    sell_columns = [col for col in ["建议卖点"] if col in styled_df.columns]
+    action_columns = [col for col in ["当前动作"] if col in styled_df.columns]
+
+    for col in buy_columns:
+        styled_df[col] = styled_df[col].apply(
+            lambda value: f'<span class="buy-text">{value}</span>' if pd.notna(value) else value
+        )
+    for col in sell_columns:
+        styled_df[col] = styled_df[col].apply(
+            lambda value: f'<span class="sell-text">{value}</span>' if pd.notna(value) else value
+        )
+    for col in action_columns:
+        def _style_action(value):
+            if pd.isna(value):
+                return value
+            text = str(value)
+            if any(keyword in text for keyword in ["买", "加仓"]):
+                return f'<span class="buy-text">{text}</span>'
+            if any(keyword in text for keyword in ["卖", "减仓"]):
+                return f'<span class="sell-text">{text}</span>'
+            if any(keyword in text for keyword in ["观望", "观察", "等待"]):
+                return f'<span class="watch-text">{text}</span>'
+            return text
+        styled_df[col] = styled_df[col].apply(_style_action)
+
+    for col in buy_columns:
+        styled_df[col] = styled_df[col].apply(
+            lambda value: f'<span class="watch-text">{value}</span>'
+            if pd.notna(value) and any(keyword in str(value) for keyword in ["观望", "观察", "等待"])
+            else value
+        )
+    for col in sell_columns:
+        styled_df[col] = styled_df[col].apply(
+            lambda value: f'<span class="watch-text">{value}</span>'
+            if pd.notna(value) and any(keyword in str(value) for keyword in ["观望", "观察", "等待"])
+            else value
+        )
+
     return f"""
     <h3>{title}</h3>
-    {df.to_html(index=False, border=0, classes='report-table')}
+    {styled_df.to_html(index=False, border=0, classes='report-table', escape=False)}
     """
 
 
@@ -217,6 +257,9 @@ def build_html() -> str:
             .report-table th, .report-table td {{ border: 1px solid black; padding: 8px; text-align: left; vertical-align: top; }}
             .report-table th {{ background-color: #f2f2f2; }}
             .report-table tr:nth-child(even) {{ background-color: #f9f9f9; }}
+            .buy-text {{ color: #d60000; font-weight: bold; }}
+            .sell-text {{ color: #0a8f3c; font-weight: bold; }}
+            .watch-text {{ color: #7a7a7a; font-weight: bold; }}
             h2, h3 {{ margin-bottom: 8px; }}
         </style>
     </head>
