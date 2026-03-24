@@ -14,6 +14,7 @@ from backtest import (
 from dividend_hold_strategy import dividend_hold_strategy
 from email_util import send_email
 from hk_holdings_tracker import HK_HOLDING_PROFILES, build_hk_holding_cards
+from runtime_logging import setup_runtime_logging
 from state_owned_dividend_strategy import state_owned_dividend_strategy
 from value_quality_hold_strategy import value_quality_hold_strategy
 
@@ -320,10 +321,7 @@ def build_html() -> str:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    )
+    setup_runtime_logging("portfolio_mail.log")
     logger.info("开始生成并发送组合邮件")
     html_content = build_html()
     logger.info("HTML 已生成，开始发送邮件")

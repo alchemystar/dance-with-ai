@@ -13,6 +13,7 @@ from bank_t_strategy import bank_t_strategy
 from macd_with_deepdown import macd_with_deepdown
 from macd_with_optimize_sell import macd_with_optimize_sell_strategy
 from macd_with_regime_filter import macd_with_regime_filter_strategy
+from runtime_logging import setup_runtime_logging
 from stragegy_for_600345 import stragegy_for_600345
 
 DEFAULT_OPENAI_MODEL = "gpt-5.4"
@@ -324,10 +325,7 @@ def parse_args():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    )
+    setup_runtime_logging("ai_stock_advisor.log")
     args = parse_args()
     bundle = build_ai_report_for_stock(
         stock_code=args.stock,

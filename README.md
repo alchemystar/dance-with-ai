@@ -125,6 +125,8 @@ python backtest.py --mode dividend_hold --days 720 --value-top 10 --value-limit 
 - `core_long_term_pool.py` 现在还会额外给出 `buy_timing_score` 和 `buy_hint`，用来提示“低点可买 / 接近低点 / 等待回踩 / 先观察”
 - `core_long_term_pool.py` 也会给 `suggested_position`，把长期状态和当前买点直接映射成一个更直观的建议仓位区间
 - `hk_holdings_tracker.py` 用来单独跟踪港股持仓，当前支持 `吉利汽车 / 安踏体育 / 腾讯 / 阿里 / 美团 / 小米`，会输出当前动作、核心逻辑、加仓规则和减仓规则
+- 所有主要入口脚本现在都会同时打印终端日志并落盘到 `logs/` 目录；统一总日志在 `logs/runtime.log`，脚本级日志分别是 `logs/backtest.log`、`logs/core_long_term_pool.log`、`logs/portfolio_mail.log`、`logs/ai_stock_advisor.log`
+- 发邮件这条链路现在已经收成一条命令：[run_portfolio_report.sh](/Users/lizhuyang/code/dance-with-ai/run_portfolio_report.sh)，它会自动加载 `.env`、设置 `HOME`、执行分析并发送邮件
 - `backtest.py --mode value_quality` 适合做“先选股、再长期持有”的回测；它会在估值处在历史低位且财报健康时逐步建仓，在明显高估或财报恶化时减仓/清仓
 - `backtest.py --mode dividend_hold` 会优先从更大的候选池里筛出高股息、分红稳定、财报健康的股票，再用低频方式建立红利底仓，适合“拿着等分红 + 等慢慢修复”
 - `backtest.py --mode bank_dividend_core` 会先在银行池里按股息率、分红稳定性、PB 分位、财报健康度和同行财报分位筛出“核心红利银行”，再用更低频的方式长期持有；这个模式更适合“先挑能拿的银行，再耐心等分红和估值修复”

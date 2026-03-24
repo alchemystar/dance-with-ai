@@ -1,11 +1,12 @@
 import argparse
+import logging
 import math
 import os
 import re
 from functools import lru_cache
 from pathlib import Path
 from requests.exceptions import ConnectionError as RequestsConnectionError
-from time import sleep
+from time import perf_counter, sleep
 from datetime import datetime, timedelta
 
 import pandas as pd
@@ -21,10 +22,13 @@ from macd_with_deepdown import macd_with_deepdown
 from macd_with_optimize_sell import macd_with_optimize_sell_strategy
 from macd_with_regime_filter import macd_with_regime_filter_strategy
 from print_util import print_transactions
+from runtime_logging import setup_runtime_logging
 from state_owned_dividend_strategy import state_owned_dividend_strategy
 from stragegy_for_600345 import stragegy_for_600345
 from theme_with_sentiment import theme_with_sentiment_strategy
 from value_quality_hold_strategy import value_quality_hold_strategy
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_TOKEN = "c0f992e8369579bfec7bf8481dc0bcc304ac66ab5b1dd12c1d154325"
 
@@ -508,7 +512,7 @@ def prepare_bank_stock_frames(start_date, end_date, area_scope="developed", forc
                 stock_code=stock_code,
             )
         except Exception as exc:
-            print(f"处理银行股票 {stock_code} 时出错: {str(exc)}")
+            logger.exception("处理银行股票 %s 时出错: %s", stock_code, str(exc))
 
     prepared_frames = add_financial_peer_context(prepared_frames)
     return prepared_frames
@@ -2450,7 +2454,7 @@ def prepare_theme_stock_frames(start_date, end_date, scope="all", force_refresh=
                 stock_code=stock_code,
             )
         except Exception as exc:
-            print(f"处理股票 {stock_code} 时出错: {str(exc)}")
+            logger.exception("处理股票 %s 时出错: %s", stock_code, str(exc))
 
     prepared_frames = add_theme_leader_context(prepared_frames)
     prepared_frames = add_financial_peer_context(prepared_frames)
@@ -2637,7 +2641,7 @@ def prepare_value_stock_frames(start_date, end_date, scope="sample", limit=0, fo
                 stock_code=stock_code,
             )
         except Exception as exc:
-            print(f"处理股票 {stock_code} 时出错: {str(exc)}")
+            logger.exception("处理股票 %s 时出错: %s", stock_code, str(exc))
 
     prepared_frames = add_financial_peer_context(prepared_frames)
     return prepared_frames
@@ -3656,7 +3660,7 @@ def analyze_stock_pool(stock_pool, start_date, end_date, strategy_instance, verb
                 stock_code=stock_code,
             )
         except Exception as exc:
-            print(f"处理股票 {stock_code} 时出错: {str(exc)}")
+            logger.exception("处理股票 %s 时出错: %s", stock_code, str(exc))
 
     if isinstance(strategy_instance, cycle_with_industry_rotation_strategy):
         prepared_frames = add_cycle_leader_context(prepared_frames)
@@ -3708,7 +3712,7 @@ def analyze_stock_pool(stock_pool, start_date, end_date, strategy_instance, verb
                 }
             )
         except Exception as exc:
-            print(f"处理股票 {stock_code} 时出错: {str(exc)}")
+            logger.exception("处理股票 %s 时出错: %s", stock_code, str(exc))
     return results
 
 
@@ -4084,12 +4088,27 @@ def parse_args():
 
 
 if __name__ == "__main__":
+    setup_runtime_logging("backtest.log")
     args = parse_args()
+    started_at = perf_counter()
     stock_name_map = load_stock_name_map()
     start_date, end_date = get_date_range(args.days)
+    logger.info(
+        "开始运行 backtest，mode=%s days=%s bank_scope=%s cycle_scope=%s theme_scope=%s value_scope=%s refresh_cache=%s quiet=%s email=%s",
+        args.mode,
+        args.days,
+        args.bank_scope,
+        args.cycle_scope,
+        args.theme_scope,
+        args.value_scope,
+        args.refresh_cache,
+        args.quiet,
+        args.email,
+    )
     print(f"回测区间: {start_date} 至 {end_date}")
     print(f"策略模式: {args.mode}")
     print("开始分析股票池...\n")
+    logger.info("回测区间 %s 至 %s", start_date, end_date)
 
     results = []
     for stock_pool, strategy_instance in build_strategy_jobs(
@@ -4104,6 +4123,11 @@ if __name__ == "__main__":
         days=args.days,
         force_refresh=args.refresh_cache,
     ):
+        logger.info(
+            "开始分析股票池，策略=%s，股票数=%s",
+            getattr(strategy_instance, "display_name", strategy_instance.__class__.__name__),
+            len(stock_pool),
+        )
         results.extend(
             analyze_stock_pool(
                 stock_pool,
@@ -4114,12 +4138,21 @@ if __name__ == "__main__":
                 force_refresh=args.refresh_cache,
             )
         )
+        logger.info(
+            "股票池分析完成，策略=%s，当前累计结果=%s",
+            getattr(strategy_instance, "display_name", strategy_instance.__class__.__name__),
+            len(results),
+        )
 
     results.sort(key=lambda item: item["total_return"], reverse=True)
+    logger.info("所有策略分析完成，结果总数=%s，耗时 %.2fs", len(results), perf_counter() - started_at)
 
     if args.email and results:
+        logger.info("开始生成邮件 HTML")
         html_content = generate_html_table(results, DEFAULT_STOCK_NAMES)
+        logger.info("开始发送回测邮件")
         send_email(DEFAULT_RECIPIENTS, html_content)
+        logger.info("回测邮件发送完成")
 
     if args.mode.startswith("cycle") and results:
         chain_summary = summarize_cycle_results(results)

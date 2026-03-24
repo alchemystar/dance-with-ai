@@ -100,8 +100,7 @@ HOME=/opt/dance-with-ai .venv/bin/python hk_holdings_tracker.py --days 720
 
 ```bash
 cd /opt/dance-with-ai
-set -a && source .env && set +a
-HOME=/opt/dance-with-ai .venv/bin/python send_portfolio_report.py
+bash run_portfolio_report.sh
 ```
 
 ## 7. 每天 21:00 自动发邮件
@@ -121,15 +120,14 @@ crontab -e
 加入这一行：
 
 ```bash
-0 21 * * * cd /opt/dance-with-ai && set -a && . /opt/dance-with-ai/.env && set +a && HOME=/opt/dance-with-ai .venv/bin/python send_portfolio_report.py >> /opt/dance-with-ai/logs/portfolio_mail.log 2>&1
+0 21 * * * cd /opt/dance-with-ai && bash run_portfolio_report.sh >> /opt/dance-with-ai/logs/portfolio_mail.log 2>&1
 ```
 
 含义：
 
 - 每天 `21:00`
 - 进入项目目录
-- 加载环境变量
-- 执行邮件脚本
+- 执行统一邮件脚本
 - 把输出写进日志
 
 ## 8. 可选：用 systemd 管理
@@ -149,6 +147,7 @@ Type=oneshot
 WorkingDirectory=/opt/dance-with-ai
 Environment=HOME=/opt/dance-with-ai
 ExecStart=/bin/bash -lc 'set -a && source /opt/dance-with-ai/.env && set +a && /opt/dance-with-ai/.venv/bin/python send_portfolio_report.py'
+ExecStart=/bin/bash -lc 'cd /opt/dance-with-ai && bash run_portfolio_report.sh'
 EOF
 ```
 
@@ -219,8 +218,7 @@ tail -f /opt/dance-with-ai/logs/portfolio_mail.log
 
 ```bash
 cd /opt/dance-with-ai
-set -a && source .env && set +a
-HOME=/opt/dance-with-ai .venv/bin/python send_portfolio_report.py
+bash run_portfolio_report.sh
 ```
 
 更新代码：
